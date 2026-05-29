@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WSTS Semiconductor Billings by Region</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f9fa; color: #333; padding: 24px; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; color: #1a1a2e; }
+  .subtitle { font-size: 12px; color: #777; margin-bottom: 20px; }
+  .chart-container { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
+  .chart-wrapper { position: relative; height: 340px; }
+  .chart-wrapper-sm { position: relative; height: 220px; }
+  .panel-title { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 12px; letter-spacing: 0.3px; text-transform: uppercase; }
+  .tooltip-custom { background: rgba(30,30,30,0.92); color: white; padding: 10px 14px; border-radius: 8px; font-size: 12px; line-height: 1.8; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .legend-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; user-select: none; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<h1>WSTS 全球半导体出货额 — 按区域季度追踪</h1>
+<div class="subtitle">数据来源: WSTS Blue Book (1986–2026 Q1) | 单位: 十亿美元 | QoQ = 环比增长率</div>
+
+<div class="chart-container">
+  <div class="panel-title">📈 季度出货额 (Billing, USD Billion)</div>
+  <div class="legend-row" id="legendTop"></div>
+  <div class="chart-wrapper">
+    <canvas id="billingChart"></canvas>
+  </div>
+</div>
+
+<div class="chart-container">
+  <div class="panel-title">📊 环比增长率 (QoQ %)</div>
+  <div class="chart-wrapper-sm">
+    <canvas id="qoqChart"></canvas>
+  </div>
+</div>
+
+<script>
+const labels = ["2016 Q1", "2016 Q2", "2016 Q3", "2016 Q4", "2017 Q1", "2017 Q2", "2017 Q3", "2017 Q4", "2018 Q1", "2018 Q2", "2018 Q3", "2018 Q4", "2019 Q1", "2019 Q2", "2019 Q3", "2019 Q4", "2020 Q1", "2020 Q2", "2020 Q3", "2020 Q4", "2021 Q1", "2021 Q2", "2021 Q3", "2021 Q4", "2022 Q1", "2022 Q2", "2022 Q3", "2022 Q4", "2023 Q1", "2023 Q2", "2023 Q3", "2023 Q4", "2024 Q1", "2024 Q2", "2024 Q3", "2024 Q4", "2025 Q1", "2025 Q2", "2025 Q3", "2025 Q4", "2026 Q1"];
+const chartData = {"Americas": {"labels": ["2016 Q1", "2016 Q2", "2016 Q3", "2016 Q4", "2017 Q1", "2017 Q2", "2017 Q3", "2017 Q4", "2018 Q1", "2018 Q2", "2018 Q3", "2018 Q4", "2019 Q1", "2019 Q2", "2019 Q3", "2019 Q4", "2020 Q1", "2020 Q2", "2020 Q3", "2020 Q4", "2021 Q1", "2021 Q2", "2021 Q3", "2021 Q4", "2022 Q1", "2022 Q2", "2022 Q3", "2022 Q4", "2023 Q1", "2023 Q2", "2023 Q3", "2023 Q4", "2024 Q1", "2024 Q2", "2024 Q3", "2024 Q4", "2025 Q1", "2025 Q2", "2025 Q3", "2025 Q4", "2026 Q1"], "billing": [0.0147, 0.0148, 0.0171, 0.019, 0.0179, 0.0198, 0.024, 0.0269, 0.0243, 0.025, 0.0285, 0.0252, 0.0182, 0.0177, 0.0202, 0.0226, 0.0221, 0.0229, 0.0241, 0.0263, 0.0246, 0.0281, 0.0323, 0.0364, 0.0345, 0.0363, 0.0361, 0.0342, 0.0288, 0.0311, 0.0354, 0.0391, 0.0383, 0.0443, 0.0517, 0.0607, 0.0554, 0.0554, 0.0674, 0.0782, 0.1014], "qoq": [0.0, 0.99, 15.08, 11.35, -5.8, 10.47, 21.36, 11.99, -9.64, 3.15, 13.87, -11.63, -27.93, -2.62, 14.27, 11.8, -2.08, 3.52, 5.11, 9.29, -6.38, 14.19, 15.02, 12.59, -5.27, 5.36, -0.65, -5.26, -15.73, 7.72, 13.9, 10.66, -2.04, 15.61, 16.72, 17.38, -8.78, 0.06, 21.67, 15.99, 29.66]}, "Europe": {"labels": ["2016 Q1", "2016 Q2", "2016 Q3", "2016 Q4", "2017 Q1", "2017 Q2", "2017 Q3", "2017 Q4", "2018 Q1", "2018 Q2", "2018 Q3", "2018 Q4", "2019 Q1", "2019 Q2", "2019 Q3", "2019 Q4", "2020 Q1", "2020 Q2", "2020 Q3", "2020 Q4", "2021 Q1", "2021 Q2", "2021 Q3", "2021 Q4", "2022 Q1", "2022 Q2", "2022 Q3", "2022 Q4", "2023 Q1", "2023 Q2", "2023 Q3", "2023 Q4", "2024 Q1", "2024 Q2", "2024 Q3", "2024 Q4", "2025 Q1", "2025 Q2", "2025 Q3", "2025 Q4", "2026 Q1"], "billing": [0.008, 0.008, 0.0083, 0.0084, 0.0089, 0.0095, 0.0098, 0.0101, 0.0108, 0.011, 0.0108, 0.0104, 0.0103, 0.0098, 0.0101, 0.0096, 0.0102, 0.0081, 0.0091, 0.0102, 0.011, 0.0117, 0.0121, 0.0129, 0.0139, 0.013, 0.0136, 0.0134, 0.0138, 0.0141, 0.0145, 0.0134, 0.013, 0.0125, 0.0133, 0.0125, 0.0127, 0.0131, 0.0141, 0.0147, 0.0186], "qoq": [0.0, 0.39, 3.06, 1.67, 5.43, 7.03, 3.68, 2.77, 6.86, 1.77, -2.22, -3.3, -1.12, -4.46, 2.64, -4.55, 5.64, -20.3, 12.18, 11.72, 8.74, 6.16, 3.13, 6.65, 7.68, -6.06, 3.88, -1.34, 3.15, 2.4, 2.41, -7.45, -3.08, -3.38, 5.95, -6.14, 1.85, 3.46, 7.53, 4.39, 26.15]}, "Japan": {"labels": ["2016 Q1", "2016 Q2", "2016 Q3", "2016 Q4", "2017 Q1", "2017 Q2", "2017 Q3", "2017 Q4", "2018 Q1", "2018 Q2", "2018 Q3", "2018 Q4", "2019 Q1", "2019 Q2", "2019 Q3", "2019 Q4", "2020 Q1", "2020 Q2", "2020 Q3", "2020 Q4", "2021 Q1", "2021 Q2", "2021 Q3", "2021 Q4", "2022 Q1", "2022 Q2", "2022 Q3", "2022 Q4", "2023 Q1", "2023 Q2", "2023 Q3", "2023 Q4", "2024 Q1", "2024 Q2", "2024 Q3", "2024 Q4", "2025 Q1", "2025 Q2", "2025 Q3", "2025 Q4", "2026 Q1"], "billing": [0.0078, 0.0076, 0.0084, 0.0085, 0.0085, 0.0089, 0.0094, 0.0097, 0.0096, 0.0102, 0.0102, 0.0099, 0.0086, 0.0089, 0.0094, 0.0092, 0.0087, 0.0087, 0.0092, 0.0099, 0.0098, 0.0106, 0.0115, 0.0118, 0.0117, 0.0123, 0.0122, 0.012, 0.0116, 0.0119, 0.0117, 0.0115, 0.0107, 0.0113, 0.0126, 0.0121, 0.0113, 0.0108, 0.0114, 0.0112, 0.0122], "qoq": [0.0, -2.53, 11.18, 1.21, -0.01, 4.82, 5.45, 3.17, -0.87, 5.69, 0.15, -2.48, -13.94, 3.93, 5.37, -2.22, -5.56, 0.18, 6.19, 7.95, -1.83, 8.65, 8.64, 2.6, -0.61, 4.39, -0.8, -1.33, -3.44, 2.91, -1.65, -1.76, -7.26, 6.03, 11.5, -4.18, -6.51, -4.44, 5.61, -2.04, 8.64]}, "Asia Pacific": {"labels": ["2016 Q1", "2016 Q2", "2016 Q3", "2016 Q4", "2017 Q1", "2017 Q2", "2017 Q3", "2017 Q4", "2018 Q1", "2018 Q2", "2018 Q3", "2018 Q4", "2019 Q1", "2019 Q2", "2019 Q3", "2019 Q4", "2020 Q1", "2020 Q2", "2020 Q3", "2020 Q4", "2021 Q1", "2021 Q2", "2021 Q3", "2021 Q4", "2022 Q1", "2022 Q2", "2022 Q3", "2022 Q4", "2023 Q1", "2023 Q2", "2023 Q3", "2023 Q4", "2024 Q1", "2024 Q2", "2024 Q3", "2024 Q4", "2025 Q1", "2025 Q2", "2025 Q3", "2025 Q4", "2026 Q1"], "billing": [0.048, 0.0487, 0.0545, 0.0571, 0.0572, 0.0597, 0.0646, 0.0673, 0.0666, 0.0717, 0.0754, 0.0691, 0.0609, 0.0622, 0.0677, 0.0671, 0.0636, 0.0638, 0.0712, 0.0725, 0.0779, 0.0841, 0.0895, 0.0914, 0.0916, 0.0889, 0.0792, 0.0712, 0.0653, 0.0696, 0.0731, 0.0819, 0.0791, 0.0821, 0.0889, 0.0873, 0.0872, 0.101, 0.1168, 0.1347, 0.1664], "qoq": [0.0, 1.48, 11.93, 4.68, 0.25, 4.29, 8.23, 4.1, -0.99, 7.7, 5.15, -8.34, -11.96, 2.16, 8.92, -0.85, -5.24, 0.21, 11.62, 1.85, 7.5, 7.94, 6.4, 2.17, 0.21, -3.02, -10.87, -10.05, -8.33, 6.6, 5.03, 12.07, -3.42, 3.77, 8.26, -1.84, -0.06, 15.78, 15.68, 15.33, 23.49]}};
+const regions = ["Americas", "Europe", "Japan", "Asia Pacific"];
+const colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"];
+
+// Build datasets for billing
+const billingDatasets = regions.map((r, i) => ({
+  label: r,
+  data: chartData[r].billing,
+  borderColor: colors[i],
+  backgroundColor: colors[i] + '22',
+  borderWidth: 2.5,
+  pointRadius: 3,
+  pointHoverRadius: 6,
+  tension: 0.3,
+  fill: false,
+}));
+
+// Build datasets for QoQ
+const qoqDatasets = regions.map((r, i) => ({
+  label: r,
+  data: chartData[r].qoq,
+  backgroundColor: chartData[r].qoq.map(v => v >= 0 ? colors[i] + 'bb' : colors[i] + '55'),
+  borderColor: colors[i],
+  borderWidth: 1,
+}));
+
+const commonXAxis = {
+  ticks: {
+    maxTicksLimit: 14,
+    font: { size: 11 },
+    maxRotation: 0,
+    callback: function(val, idx) {
+      const lbl = labels[idx];
+      if (lbl && lbl.includes('Q1')) return lbl.split(' ')[0];
+      return '';
+    }
+  },
+  grid: { color: '#f0f0f0' }
+};
+
+// Billing chart
+const billingChart = new Chart(document.getElementById('billingChart'), {
+  type: 'line',
+  data: { labels, datasets: billingDatasets },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          title: ctx => ctx[0].label,
+          label: ctx => {
+            const r = ctx.dataset.label;
+            const qoq = chartData[r].qoq[ctx.dataIndex];
+            const qoqStr = qoq >= 0 ? '+' + qoq.toFixed(1) + '%' : qoq.toFixed(1) + '%';
+            return ` ${r}: ${ctx.parsed.y.toFixed(3)}B  QoQ: ${qoqStr}`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: commonXAxis,
+      y: {
+        ticks: { font: { size: 11 }, callback: v => v.toFixed(2) + 'B' },
+        grid: { color: '#f0f0f0' },
+        title: { display: true, text: 'USD Billion', font: { size: 11 } }
+      }
+    }
+  }
+});
+
+// QoQ chart
+const qoqChart = new Chart(document.getElementById('qoqChart'), {
+  type: 'bar',
+  data: { labels, datasets: qoqDatasets },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          title: ctx => ctx[0].label,
+          label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? '+' : ''}${ctx.parsed.y.toFixed(1)}%`
+        }
+      }
+    },
+    scales: {
+      x: { ...commonXAxis, stacked: false },
+      y: {
+        ticks: { font: { size: 11 }, callback: v => v + '%' },
+        grid: { color: '#f0f0f0' },
+        title: { display: true, text: 'QoQ Growth %', font: { size: 11 } }
+      }
+    }
+  }
+});
+
+// Custom legend
+const legendEl = document.getElementById('legendTop');
+regions.forEach((r, i) => {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.innerHTML = `<div class="legend-dot" style="background:${colors[i]}"></div><span>${r}</span>`;
+  item.addEventListener('click', () => {
+    const meta = billingChart.getDatasetMeta(i);
+    meta.hidden = !meta.hidden;
+    billingChart.update();
+    qoqChart.getDatasetMeta(i).hidden = meta.hidden;
+    qoqChart.update();
+    item.style.opacity = meta.hidden ? '0.4' : '1';
+  });
+  legendEl.appendChild(item);
+});
+</script>
+</body>
+</html>
